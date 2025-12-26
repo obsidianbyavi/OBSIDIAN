@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>OMNI-CALC</title>
+    <style>
+        /* --- 1. CORE & RESET --- */
+        :root {
+            --bg: #000000;
+            --surface: #050505;
+            --surface-hover: #0a0a0a;
+            --border: #151515;
+            --border-active: #333333;
+            --text: #ffffff;
+            --text-dim: #555555;
+            --accent: #ffffff;
+            --font-main: 'Helvetica Neue', 'Arial', sans-serif;
+            --font-mono: 'Courier New', Courier, monospace;
+            --ease-out: cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; outline: none; -webkit-tap-highlight-color: transparent; }
+        
+        body {
+            background: var(--bg); color: var(--text); font-family: var(--font-main);
+            min-height: 100vh; overflow-x: hidden; scroll-behavior: smooth;
+            /* Very subtle grain for texture, barely visible */
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.02'/%3E%3C/svg%3E");
+        }
+
+        /* --- 2. LAYOUT --- */
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        
+        header { 
+            padding-bottom: 2rem; margin-bottom: 2rem; border-bottom: 1px solid var(--border);
+            display: flex; flex-direction: column; gap: 2rem;
+            animation: fadeIn 1s var(--ease-out);
+        }
+
+        .header-top { display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.05em; text-transform: uppercase; }
+        .status { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-dim); animation: pulse 3s infinite; }
+
+        /* SEARCH BAR */
+        .search-wrapper { position: relative; width: 100%; }
+        .search-bar {
+            width: 100%; background: var(--surface); border: 1px solid var(--border);
+            color: var(--text); padding: 1.2rem 3rem 1.2rem 1.5rem; font-size: 1rem;
+            font-family: var(--font-mono); transition: all 0.3s var(--ease-out);
+        }
+        .search-bar:focus { 
+            border-color: var(--text); 
+            box-shadow: 0 0 20px rgba(255,255,255,0.05);
+            transform: scale(1.005);
+        }
+        .search-icon { position: absolute; right: 1.5rem; top: 50%; transform: translateY(-50%); color: var(--text-dim); pointer-events: none; }
+
+        /* TABS */
+        .nav-scroller { overflow-x: auto; padding-bottom: 10px; margin-bottom: 2rem; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+        .nav-scroller::-webkit-scrollbar { display: none; }
+        
+        .tabs { display: flex; gap: 0.5rem; }
+        .tab-btn {
+            background: transparent; border: 1px solid transparent; color: var(--text-dim);
+            padding: 0.6rem 1.2rem; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em;
+            cursor: pointer; white-space: nowrap; transition: all 0.3s ease; border-radius: 0;
+            position: relative; overflow: hidden;
+        }
+        
+        .tab-btn::after {
+            content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 1px;
+            background: var(--text); transform: scaleX(0); transform-origin: right;
+            transition: transform 0.4s var(--ease-out);
+        }
+        
+        .tab-btn:hover { color: var(--text); }
+        .tab-btn:hover::after { transform: scaleX(1); transform-origin: left; }
+        
+        .tab-btn.active { color: var(--text); background: var(--surface); border-color: var(--border); }
+
+        /* GRID */
+        .grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem;
+            min-height: 50vh;
+        }
+
+        /* --- 3. CARDS --- */
+        .card {
+            background: var(--surface); border: 1px solid var(--border); padding: 1.5rem;
+            display: flex; flex-direction: column; gap: 1rem; 
+            transition: transform 0.4s var(--ease-out), border-color 0.4s, box-shadow 0.4s;
+            position: relative; overflow: hidden;
+            opacity: 0; animation: slideUp 0.6s var(--ease-out) forwards;
+        }
+        
+        .card:hover { 
+            border-color: var(--border-active); 
+            transform: translateY(-4px); 
+            box-shadow: 0 10px 40px -10px rgba(0,0,0,0.8);
+            z-index: 2;
+        }
+        
+        .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+        .card-title { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-dim); transition: color 0.3s; }
+        .card:hover .card-title { color: var(--text); }
+        .card-icon { opacity: 0.3; font-size: 0.9rem; }
+
+        /* UI Elements */
+        .converter-row { 
+            display: flex; align-items: center; gap: 0.5rem; 
+            background: #000; border: 1px solid var(--border); padding: 0.6rem;
+            transition: border-color 0.3s;
+        }
+        .converter-row:focus-within { border-color: var(--text-dim); }
+        
+        .converter-row input { 
+            flex: 1; background: transparent; border: none; color: white; 
+            font-family: var(--font-mono); font-size: 1rem; min-width: 0;
+        }
+        .converter-row select { 
+            background: transparent; border: none; color: var(--text-dim); 
+            font-size: 0.7rem; text-align: right; cursor: pointer; max-width: 120px;
+        }
+        .swap-icon { text-align: center; color: var(--text-dim); font-size: 0.8rem; transform: rotate(90deg); opacity: 0.5; }
+
+        .input-group { margin-bottom: 0.5rem; }
+        .input-label { font-size: 0.6rem; color: var(--text-dim); display: block; margin-bottom: 0.4rem; font-family: var(--font-mono); letter-spacing: 0.05em; }
+        
+        .std-input { 
+            width: 100%; background: #000; border: 1px solid var(--border); 
+            color: white; padding: 0.8rem; font-family: var(--font-mono); 
+            transition: all 0.3s;
+        }
+        .std-input:focus { border-color: var(--text); box-shadow: 0 0 10px rgba(255,255,255,0.05); }
+        
+        .calc-result { 
+            margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed var(--border); 
+            text-align: right; font-family: var(--font-mono); font-size: 1.2rem; color: var(--text);
+            text-shadow: 0 0 10px rgba(255,255,255,0.2);
+        }
+        
+        .calc-btn {
+            width: 100%; background: var(--surface); border: 1px solid var(--border);
+            color: white; padding: 1rem; margin-top: 0.5rem; cursor: pointer;
+            text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.2em; font-weight: 700;
+            transition: all 0.3s; position: relative; overflow: hidden;
+        }
+        .calc-btn::before {
+            content:''; position: absolute; top:0; left:-100%; width:100%; height:100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            transition: left 0.5s;
+        }
+        .calc-btn:hover { background: #111; border-color: #444; }
+        .calc-btn:hover::before { left: 100%; }
+
+        .empty-state { grid-column: 1/-1; text-align: center; padding: 4rem; color: var(--text-dim); font-family: var(--font-mono); animation: fadeIn 0.5s; }
+
+        /* --- 4. ANIMATIONS --- */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+
+        /* --- 5. RESPONSIVE --- */
+        @media (min-width: 768px) { .swap-icon { transform: rotate(0deg); } }
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            .grid { grid-template-columns: 1fr; }
+            .header-top { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+            .card:hover { transform: none; } /* Disable heavy hover effects on mobile */
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div class="header-top">
+            <div class="logo">OMNI CALC | OBSIDIAN</div>
+            <div class="status" id="toolCount">INITIALIZING SYSTEM...</div>
+        </div>
+        <div class="search-wrapper">
+            <input type="text" class="search-bar" id="searchInput" placeholder="SEARCH 250+ TOOLS (E.G. 'FLOW', 'BIT', 'PSI', 'MORTGAGE')...">
+            <span class="search-icon">🔍</span>
+        </div>
+    </header>
+
+    <div class="nav-scroller">
+        <nav class="tabs" id="categoryTabs"></nav>
+    </div>
+
+    <main class="grid" id="toolsGrid">
+        </main>
+</div>
+
+<script>
+/* ==========================================================================
+   THE OMNI-ENGINE V4.0
+   ========================================================================== */
+const ENGINE = {
+    categories: [
+        {id: 'all', label: 'All'},
+        {id: 'convert', label: 'Converters'},
+        {id: 'engineer', label: 'Engineering'},
+        {id: 'physics', label: 'Physics'},
+        {id: 'finance', label: 'Finance'},
+        {id: 'comp', label: 'Computer Sci'},
+        {id: 'construct', label: 'Construction'},
+        {id: 'everyday', label: 'Everyday'}
+    ],
+
+    converters: [
+        // --- GENERAL ---
+        { id: 'c_len', t: 'Length', cat: 'convert', u: { m:1, km:1000, cm:0.01, mm:0.001, ft:0.3048, in:0.0254, yd:0.9144, mi:1609.34, nm:1e-9, angstrom:1e-10, ly:9.461e15 } },
+        { id: 'c_area', t: 'Area', cat: 'convert', u: { m2:1, sqft:0.0929, sqin:0.000645, acre:4046.86, ha:10000, km2:1e6 } },
+        { id: 'c_vol', t: 'Volume', cat: 'convert', u: { l:1, ml:0.001, m3:1000, gal:3.785, floz:0.0295, cup:0.24, pt:0.473, qt:0.946, bbl:158.98 } },
+        { id: 'c_mass', t: 'Mass', cat: 'convert', u: { kg:1, g:0.001, mg:1e-6, lb:0.4535, oz:0.0283, ton:1000, stone:6.35, grain:0.0000647 } },
+        { id: 'c_time', t: 'Time', cat: 'convert', u: { s:1, min:60, hr:3600, day:86400, week:604800, yr:3.154e7, ms:0.001 } },
+        { id: 'c_speed', t: 'Speed', cat: 'convert', u: { ms:1, kmh:0.2777, mph:0.4470, knot:0.5144, mach:343, c:2.998e8 } },
+        { id: 'c_temp', t: 'Temperature', cat: 'convert', type: 'temp' },
+
+        // --- ENGINEERING ---
+        { id: 'c_pres', t: 'Pressure', cat: 'engineer', u: { pa:1, bar:100000, psi:6894.76, atm:101325, torr:133.32, ksi:6.895e6 } },
+        { id: 'c_ener', t: 'Energy', cat: 'engineer', u: { j:1, cal:4.184, kwh:3.6e6, btu:1055, ev:1.602e-19, erg:1e-7 } },
+        { id: 'c_pow', t: 'Power', cat: 'engineer', u: { w:1, kw:1000, hp:745.7, mw:1e6, gw:1e9, btuh:0.293 } },
+        { id: 'c_forc', t: 'Force', cat: 'engineer', u: { n:1, lbf:4.448, dyn:1e-5, kip:4448.22 } },
+        { id: 'c_torq', t: 'Torque', cat: 'engineer', u: { nm:1, lbft:1.3558, lbin:0.1129, kgm:9.806 } },
+        { id: 'c_flow', t: 'Volumetric Flow', cat: 'engineer', u: { m3s:1, lmin:0.0000166, cfm:0.0004719, gpm:0.00006309 } },
+        { id: 'c_dens', t: 'Density', cat: 'engineer', u: { kgm3:1, gcm3:1000, lbft3:16.018 } },
+        { id: 'c_visc', t: 'Viscosity (Dyn)', cat: 'engineer', u: { pas:1, poise:0.1, cp:0.001 } },
+
+        // --- COMPUTER ---
+        { id: 'c_data', t: 'Data Storage', cat: 'comp', u: { b:1, kb:1024, mb:1.049e6, gb:1.074e9, tb:1.1e12, pb:1.126e15 } },
+        { id: 'c_rate', t: 'Data Transfer', cat: 'comp', u: { bps:1, kbps:1000, mbps:1e6, gbps:1e9 } },
+        
+        // --- EVERYDAY ---
+        { id: 'c_cook', t: 'Cooking Vol', cat: 'everyday', u: { ml:1, tsp:4.92, tbsp:14.78, cup:236.5, floz:29.57 } },
+        { id: 'c_fuel', t: 'Fuel Econ', cat: 'everyday', u: { kml:1, mpg:0.425 } },
+        { id: 'c_ang', t: 'Angle', cat: 'everyday', u: { deg:1, rad:57.29, grad:0.9, rev:360 } }
+    ],
+
+    calculators: [
+        // --- CONSTRUCTION ---
+        { id: 'con_brass', t: 'Brass Weight', cat: 'construct', in: ['Vol (in³)'], fn: v=>v*0.303, u:'lbs' },
+        { id: 'con_steel', t: 'Steel Rod Wt', cat: 'construct', in: ['Dia (mm)', 'Len (m)'], fn: (d,l)=>(d*d/162)*l, u:'kg' },
+        { id: 'con_conc', t: 'Concrete Vol', cat: 'construct', in: ['Area (ft²)', 'Thick (in)'], fn: (a,t)=>(a*(t/12))/27, u:'yd³' },
+        { id: 'con_brick', t: 'Brick Count', cat: 'construct', in: ['Wall Area (ft²)'], fn: a=>a*7, u:'pcs' },
+        { id: 'con_tile', t: 'Tile Calc', cat: 'construct', in: ['Room (ft²)', 'Tile (ft²)'], fn: (r,t)=>(r/t)*1.05, u:'tiles (+5%)' },
+        { id: 'con_paint', t: 'Paint Est', cat: 'construct', in: ['Wall Area (ft²)'], fn: a=>a/350, u:'gal' },
+        { id: 'con_asph', t: 'Asphalt Vol', cat: 'construct', in: ['Area (ft²)', 'Thick (in)'], fn: (a,t)=>a*(t/12)*145, u:'lbs' },
+        { id: 'con_lum', t: 'Lumber BdFt', cat: 'construct', in: ['T(in)', 'W(in)', 'L(ft)'], fn: (t,w,l)=>(t*w*l)/12, u:'BdFt' },
+
+        // --- FINANCE ---
+        { id: 'fin_emi', t: 'Loan EMI', cat: 'finance', in: ['Loan', 'Rate %', 'Months'], fn: (p,r,n)=>{let i=r/1200; return p*i*Math.pow(1+i,n)/(Math.pow(1+i,n)-1)}, u:'/mo' },
+        { id: 'fin_roi', t: 'ROI', cat: 'finance', in: ['Gain', 'Cost'], fn: (g,c)=>((g-c)/c)*100, u:'%' },
+        { id: 'fin_mar', t: 'Profit Margin', cat: 'finance', in: ['Rev', 'Cost'], fn: (r,c)=>((r-c)/r)*100, u:'%' },
+        { id: 'fin_vat', t: 'Tax/VAT Add', cat: 'finance', in: ['Amt', 'Tax %'], fn: (a,t)=>a*(1+t/100), u:'Total' },
+        { id: 'fin_disc', t: 'Discount', cat: 'finance', in: ['Price', 'Off %'], fn: (p,d)=>p*(1-d/100), u:'Final' },
+        { id: 'fin_ci', t: 'Compound Int', cat: 'finance', in: ['P', 'R%', 'Yrs'], fn: (p,r,t)=>p*Math.pow((1+r/100), t)-p, u:'Int Earned' },
+        { id: 'fin_rule', t: 'Rule of 72', cat: 'finance', in: ['Rate %'], fn: r=>72/r, u:'Yrs to Dbl' },
+        { id: 'fin_sal', t: 'Hourly > Year', cat: 'finance', in: ['$/hr'], fn: h=>h*2080, u:'$/yr' },
+
+        // --- PHYSICS ---
+        { id: 'phy_v', t: 'Voltage (V=IR)', cat: 'physics', in: ['I (A)', 'R (Ω)'], fn: (i,r)=>i*r, u:'V' },
+        { id: 'phy_i', t: 'Current (I=V/R)', cat: 'physics', in: ['V (V)', 'R (Ω)'], fn: (v,r)=>v/r, u:'A' },
+        { id: 'phy_p', t: 'Power (P=VI)', cat: 'physics', in: ['V (V)', 'I (A)'], fn: (v,i)=>v*i, u:'W' },
+        { id: 'phy_k', t: 'Kinetic Energy', cat: 'physics', in: ['Mass (kg)', 'Vel (m/s)'], fn: (m,v)=>0.5*m*v*v, u:'J' },
+        { id: 'phy_f', t: 'Force (F=ma)', cat: 'physics', in: ['Mass (kg)', 'Acc (m/s²)'], fn: (m,a)=>m*a, u:'N' },
+        { id: 'phy_freq', t: 'Wavelength', cat: 'physics', in: ['Freq (Hz)'], fn: f=>299792458/f, u:'m' },
+        { id: 'phy_mom', t: 'Momentum', cat: 'physics', in: ['Mass', 'Vel'], fn: (m,v)=>m*v, u:'kg·m/s' },
+
+        // --- HEALTH ---
+        { id: 'hlt_bmi', t: 'BMI Calc', cat: 'everyday', in: ['Wt (kg)', 'Ht (m)'], fn: (w,h)=>w/(h*h), u:'BMI' },
+        { id: 'hlt_wat', t: 'Water Intake', cat: 'everyday', in: ['Wt (kg)'], fn: w=>w*0.033, u:'L/day' },
+        { id: 'hlt_bmr', t: 'BMR (Est)', cat: 'everyday', in: ['Wt (kg)'], fn: w=>w*24, u:'kcal/day' },
+        
+        // --- GEOMETRY ---
+        { id: 'geo_c', t: 'Circle Area', cat: 'engineer', in: ['r'], fn: r=>Math.PI*r*r, u:'Area' },
+        { id: 'geo_sph', t: 'Sphere Vol', cat: 'engineer', in: ['r'], fn: r=>(4/3)*Math.PI*Math.pow(r,3), u:'Vol' },
+        { id: 'geo_cyl', t: 'Cylinder Vol', cat: 'engineer', in: ['r', 'h'], fn: (r,h)=>Math.PI*r*r*h, u:'Vol' },
+        { id: 'geo_hyp', t: 'Pythagoras', cat: 'engineer', in: ['a', 'b'], fn: (a,b)=>Math.sqrt(a*a+b*b), u:'c' },
+
+        // --- COMPUTER ---
+        { id: 'cmp_dl', t: 'Download Time', cat: 'comp', in: ['Size (GB)', 'Speed (Mbps)'], fn: (s,sp)=>(s*1024*8)/sp, u:'Seconds' },
+        { id: 'cmp_px', t: 'Megapixels', cat: 'comp', in: ['W (px)', 'H (px)'], fn: (w,h)=>(w*h)/1e6, u:'MP' }
+    ]
+};
+
+/* ==========================================================================
+   RENDER LOGIC
+   ========================================================================== */
+const grid = document.getElementById('toolsGrid');
+const tabs = document.getElementById('categoryTabs');
+const search = document.getElementById('searchInput');
+const countLabel = document.getElementById('toolCount');
+let activeCat = 'all';
+
+function init() {
+    // 1. Build Tabs
+    tabs.innerHTML = ENGINE.categories.map(c => 
+        `<button class="tab-btn ${c.id === 'all' ? 'active' : ''}" 
+          onclick="setCat('${c.id}')">${c.label}</button>`
+    ).join('');
+
+    // 2. Count Total Permutations
+    let convCount = 0;
+    ENGINE.converters.forEach(c => {
+        const uCount = c.type === 'temp' ? 3 : Object.keys(c.u).length;
+        convCount += (uCount * (uCount-1)); 
+    });
+    const total = convCount + ENGINE.calculators.length;
+    countLabel.innerText = `SYS: ONLINE // ${total}+ PERMUTATIONS`;
+
+    render();
+}
+
+function render() {
+    grid.innerHTML = '';
+    const term = search.value.toLowerCase();
+    let hasResults = false;
+    let index = 0;
+
+    // Helper for Animation Delay
+    const getDelay = () => `style="animation-delay: ${Math.min(index++ * 0.05, 0.5)}s"`;
+
+    // --- RENDER CONVERTERS ---
+    ENGINE.converters.forEach(c => {
+        if (activeCat !== 'all' && activeCat !== c.cat) return;
+        if (term && !c.t.toLowerCase().includes(term)) return;
+
+        hasResults = true;
+        let opts = '';
+        if (c.type === 'temp') {
+            opts = `<option value="c">CELSIUS</option><option value="f">FAHRENHEIT</option><option value="k">KELVIN</option>`;
+        } else {
+            for (let u in c.u) opts += `<option value="${u}">${u.toUpperCase()}</option>`;
+        }
+
+        const div = document.createElement('div');
+        div.className = 'card';
+        div.innerHTML = `
+            <div class="card-head"><span class="card-title">${c.t}</span><span class="card-icon">⇄</span></div>
+            <div class="converter-row">
+                <input type="number" class="c-in" data-pos="l" placeholder="0">
+                <select class="c-sel" data-pos="l">${opts}</select>
+            </div>
+            <div class="swap-icon">⇅</div>
+            <div class="converter-row">
+                <input type="number" class="c-in" data-pos="r" placeholder="0">
+                <select class="c-sel" data-pos="r">${opts}</select>
+            </div>
+        `;
+        div.style.animationDelay = `${Math.min(index++ * 0.03, 0.3)}s`;
+        grid.appendChild(div);
+        bindConverter(div, c);
+    });
+
+    // --- RENDER CALCULATORS ---
+    ENGINE.calculators.forEach(c => {
+        if (activeCat !== 'all' && activeCat !== c.cat) return;
+        if (term && !c.t.toLowerCase().includes(term)) return;
+
+        hasResults = true;
+        const inputs = c.in.map((lbl, i) => `
+            <div class="input-group">
+                <label class="input-label">${lbl}</label>
+                <input type="number" class="std-input" id="i_${c.id}_${i}" placeholder="0">
+            </div>
+        `).join('');
+
+        const div = document.createElement('div');
+        div.className = 'card';
+        div.innerHTML = `
+            <div class="card-head"><span class="card-title">${c.t}</span><span class="card-icon">#</span></div>
+            ${inputs}
+            <button class="calc-btn" onclick="run('${c.id}')">CALCULATE</button>
+            <div class="calc-result" id="r_${c.id}">...</div>
+        `;
+        div.style.animationDelay = `${Math.min(index++ * 0.03, 0.3)}s`;
+        grid.appendChild(div);
+    });
+
+    if(!hasResults) {
+        grid.innerHTML = `<div class="empty-state">NO TOOLS FOUND FOR "${term.toUpperCase()}"</div>`;
+    }
+}
+
+/* ==========================================================================
+   LOGIC HANDLERS
+   ========================================================================== */
+
+function bindConverter(el, cfg) {
+    const lIn = el.querySelector('input[data-pos="l"]');
+    const rIn = el.querySelector('input[data-pos="r"]');
+    const lSel = el.querySelector('select[data-pos="l"]');
+    const rSel = el.querySelector('select[data-pos="r"]');
+
+    if(rSel.options.length > 1) rSel.selectedIndex = 1;
+
+    function upd(src) {
+        const val = parseFloat(src === 'l' ? lIn.value : rIn.value);
+        if(isNaN(val)) { 
+            if(src==='l') rIn.value=''; else lIn.value=''; 
+            return; 
+        }
+
+        const u1 = lSel.value;
+        const u2 = rSel.value;
+        let res;
+
+        if(cfg.type === 'temp') {
+            let k;
+            if(src === 'l') { // L -> R
+                k = u1==='c' ? val+273.15 : (u1==='f' ? (val-32)*5/9 + 273.15 : val);
+                res = u2==='c' ? k-273.15 : (u2==='f' ? (k-273.15)*9/5 + 32 : k);
+                rIn.value = parseFloat(res.toPrecision(6));
+            } else { // R -> L
+                k = u2==='c' ? val+273.15 : (u2==='f' ? (val-32)*5/9 + 273.15 : val);
+                res = u1==='c' ? k-273.15 : (u1==='f' ? (k-273.15)*9/5 + 32 : k);
+                lIn.value = parseFloat(res.toPrecision(6));
+            }
+        } else {
+            const f1 = cfg.u[u1];
+            const f2 = cfg.u[u2];
+            if(src === 'l') {
+                res = (val * f1) / f2;
+                rIn.value = parseFloat(res.toPrecision(6));
+            } else {
+                res = (val * f2) / f1;
+                lIn.value = parseFloat(res.toPrecision(6));
+            }
+        }
+    }
+
+    [lIn, rIn].forEach(i => i.addEventListener('input', e => upd(e.target.dataset.pos)));
+    [lSel, rSel].forEach(s => s.addEventListener('change', () => upd('l')));
+}
+
+window.run = function(id) {
+    const c = ENGINE.calculators.find(x => x.id === id);
+    if(!c) return;
+    const args = [];
+    for(let i=0; i<c.in.length; i++) {
+        const val = parseFloat(document.getElementById(`i_${id}_${i}`).value);
+        if(isNaN(val)) return;
+        args.push(val);
+    }
+    const res = c.fn(...args);
+    document.getElementById(`r_${id}`).innerText = res.toLocaleString(undefined, {maximumFractionDigits:2}) + ' ' + c.u;
+}
+
+window.setCat = function(id) {
+    activeCat = id;
+    document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.toggle('active', b.innerText === ENGINE.categories.find(x=>x.id===id).label.toUpperCase());
+    });
+    render();
+}
+
+search.addEventListener('input', render);
+
+init();
+
+</script>
+</body>
+</html>
