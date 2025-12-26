@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OBSIDIAN | Secure Generator</title>
+    <style>
+        /* --- RESET & VARIABLES --- */
+        :root {
+            /* CHANGED: Background is now pitch black */
+            --bg-color: #000000;
+            /* Surface color slightly adjusted for visibility against pure black */
+            --surface-color: #0a0a0a;
+            --border-color: #1a1a1a;
+            --text-main: #ffffff;
+            --text-muted: #666666;
+            --font-display: 'Helvetica Neue', 'Arial', sans-serif;
+            --font-mono: 'Courier New', Courier, monospace;
+            --ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            outline: none;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: var(--font-display);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow-x: hidden;
+            
+            /* OPTIONAL: Kept noise very subtle. Remove this line if you want 100% solid black */
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+        }
+
+        /* --- LAYOUT --- */
+        .container {
+            width: 100%;
+            max-width: 500px;
+            padding: 2rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        header {
+            margin-bottom: 3rem;
+            text-align: center;
+            opacity: 0;
+            animation: fadeUp 1s var(--ease-out-expo) forwards 0.2s;
+        }
+
+        h1 {
+            font-size: 0.8rem;
+            letter-spacing: 0.4em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+            transition: color 0.3s ease;
+        }
+
+        .brand-logo {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: -0.05em;
+        }
+
+        /* --- PASSWORD DISPLAY --- */
+        .display-wrapper {
+            position: relative;
+            margin-bottom: 3rem;
+            opacity: 0;
+            animation: fadeUp 1s var(--ease-out-expo) forwards 0.4s;
+        }
+
+        .password-display {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 2.5rem 2rem 3rem 2rem;
+            min-height: 140px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-mono);
+            font-size: clamp(1rem, 4vw, 1.5rem);
+            word-break: break-all;
+            white-space: pre-wrap;
+            text-align: center;
+            line-height: 1.4;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            transition: all 0.4s var(--ease-out-expo);
+            position: relative;
+            border-radius: 0;
+        }
+
+        .password-display:hover {
+            border-color: #333;
+            /* Made shadow slightly more visible against pitch black */
+            box-shadow: 0 10px 40px -10px rgba(30,30,30,0.5);
+            transform: translateY(-2px);
+        }
+
+        .password-display::after {
+            content: 'CLICK TO COPY';
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: var(--font-display);
+            font-size: 0.6rem;
+            letter-spacing: 0.2em;
+            color: var(--text-muted);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        .password-display:hover::after {
+            opacity: 1;
+        }
+
+        .strength-indicator {
+            height: 2px;
+            background: #111;
+            width: 100%;
+            margin-top: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .strength-bar {
+            height: 100%;
+            width: 0%;
+            background: white;
+            transition: width 0.5s var(--ease-out-expo), opacity 0.5s ease;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        /* --- CONTROLS --- */
+        .controls {
+            opacity: 0;
+            animation: fadeUp 1s var(--ease-out-expo) forwards 0.6s;
+        }
+
+        .control-group {
+            margin-bottom: 2rem;
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: var(--text-main);
+            cursor: pointer;
+            margin-top: -9px;
+            box-shadow: 0 0 0 4px var(--bg-color); 
+            transition: transform 0.2s ease;
+        }
+
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 2px;
+            cursor: pointer;
+            background: var(--border-color);
+        }
+
+        /* Options Grid */
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 3rem;
+        }
+
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .checkbox-wrapper input {
+            display: none;
+        }
+
+        .custom-checkbox {
+            width: 16px;
+            height: 16px;
+            border: 1px solid var(--text-muted);
+            margin-right: 12px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .checkbox-wrapper input:checked + .custom-checkbox {
+            background: var(--text-main);
+            border-color: var(--text-main);
+            box-shadow: 0 0 8px rgba(255,255,255,0.4);
+        }
+
+        .checkbox-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            transition: color 0.3s ease;
+        }
+
+        .checkbox-wrapper:hover .checkbox-label {
+            color: var(--text-main);
+        }
+
+        /* --- BUTTON --- */
+        .generate-btn {
+            width: 100%;
+            background: var(--text-main);
+            color: var(--bg-color);
+            border: none;
+            padding: 1.2rem;
+            font-size: 1rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s var(--ease-out-expo);
+        }
+
+        .generate-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent);
+            transition: left 0.5s;
+        }
+
+        .generate-btn:hover {
+            transform: scale(1.02);
+        }
+
+        .generate-btn:hover::before {
+            left: 100%;
+        }
+
+        /* --- TOAST --- */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 1rem 2rem;
+            font-size: 0.8rem;
+            letter-spacing: 0.1em;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.4s var(--ease-out-expo);
+            z-index: 100;
+        }
+
+        .toast.visible {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1 id="securityLabel">SECURITY LEVEL: CALCULATING...</h1>
+            <div class="brand-logo">OBSIDIAN</div>
+        </header>
+
+        <div class="display-wrapper">
+            <div class="password-display" id="passwordOutput" onclick="copyPassword()">
+                Generate
+            </div>
+            <div class="strength-indicator">
+                <div class="strength-bar" id="strengthBar"></div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <div class="slider-header">
+                    <span>Length</span>
+                    <span id="lengthValue">16</span>
+                </div>
+                <input type="range" id="lengthSlider" min="8" max="64" value="16">
+            </div>
+
+            <div class="options-grid">
+                <label class="checkbox-wrapper">
+                    <input type="checkbox" id="includeUppercase" checked>
+                    <div class="custom-checkbox"></div>
+                    <span class="checkbox-label">Uppercase</span>
+                </label>
+                <label class="checkbox-wrapper">
+                    <input type="checkbox" id="includeLowercase" checked>
+                    <div class="custom-checkbox"></div>
+                    <span class="checkbox-label">Lowercase</span>
+                </label>
+                <label class="checkbox-wrapper">
+                    <input type="checkbox" id="includeNumbers" checked>
+                    <div class="custom-checkbox"></div>
+                    <span class="checkbox-label">Numbers</span>
+                </label>
+                <label class="checkbox-wrapper">
+                    <input type="checkbox" id="includeSymbols" checked>
+                    <div class="custom-checkbox"></div>
+                    <span class="checkbox-label">Symbols</span>
+                </label>
+            </div>
+
+            <button class="generate-btn" onclick="generatePassword()">
+                Generate Hash
+            </button>
+        </div>
+    </div>
+
+    <div class="toast" id="toast">COPIED TO CLIPBOARD</div>
+
+    <script>
+        // DOM Elements
+        const passwordOutput = document.getElementById('passwordOutput');
+        const lengthSlider = document.getElementById('lengthSlider');
+        const lengthValue = document.getElementById('lengthValue');
+        const securityLabel = document.getElementById('securityLabel');
+        const checkboxes = {
+            upper: document.getElementById('includeUppercase'),
+            lower: document.getElementById('includeLowercase'),
+            number: document.getElementById('includeNumbers'),
+            symbol: document.getElementById('includeSymbols')
+        };
+        const strengthBar = document.getElementById('strengthBar');
+        const toast = document.getElementById('toast');
+
+        // Character Sets
+        const CHARS = {
+            upper: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+            lower: 'abcdefghijklmnopqrstuvwxyz',
+            number: '0123456789',
+            symbol: '!@#$%^&*()_+~`|}{[]:;?><,./-='
+        };
+
+        // Update Slider UI
+        lengthSlider.addEventListener('input', (e) => {
+            lengthValue.innerText = e.target.value;
+        });
+
+        // Generate Password Logic
+        function generatePassword() {
+            let length = +lengthSlider.value;
+            let hasUpper = checkboxes.upper.checked;
+            let hasLower = checkboxes.lower.checked;
+            let hasNumber = checkboxes.number.checked;
+            let hasSymbol = checkboxes.symbol.checked;
+
+            if (!hasUpper && !hasLower && !hasNumber && !hasSymbol) {
+                showToast("SELECT AT LEAST ONE OPTION");
+                return;
+            }
+
+            // Build allowed string
+            let allowed = '';
+            if (hasUpper) allowed += CHARS.upper;
+            if (hasLower) allowed += CHARS.lower;
+            if (hasNumber) allowed += CHARS.number;
+            if (hasSymbol) allowed += CHARS.symbol;
+
+            // Generate
+            let password = '';
+            for (let i = 0; i < length; i++) {
+                password += allowed[Math.floor(Math.random() * allowed.length)];
+            }
+
+            // Trigger Animation and Updates
+            animateText(password);
+            updateStrength(length, hasUpper, hasLower, hasNumber, hasSymbol);
+        }
+
+        // "Hacker" Decoding Animation
+        function animateText(finalText) {
+            let iterations = 0;
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+            
+            clearInterval(window.textInterval);
+
+            window.textInterval = setInterval(() => {
+                passwordOutput.innerText = finalText
+                    .split('')
+                    .map((letter, index) => {
+                        if (index < iterations) {
+                            return finalText[index];
+                        }
+                        return chars[Math.floor(Math.random() * chars.length)];
+                    })
+                    .join('');
+
+                if (iterations >= finalText.length) {
+                    clearInterval(window.textInterval);
+                }
+                iterations += 1/2; 
+            }, 30);
+        }
+
+        // Updated Strength Calculation + Text Label Update
+        function updateStrength(len, u, l, n, s) {
+            let strength = 0;
+            if (u) strength += 10;
+            if (l) strength += 10;
+            if (n) strength += 20;
+            if (s) strength += 20;
+            if (len >= 12) strength += 20;
+            if (len >= 20) strength += 20;
+
+            if (strength > 100) strength = 100;
+
+            // Update Bar
+            strengthBar.style.width = strength + '%';
+            strengthBar.style.opacity = strength < 40 ? '0.3' : '1';
+
+            // Update Text Label logic
+            let labelText = "SECURITY LEVEL: CALCULATING...";
+            
+            if (strength <= 40) {
+                labelText = "SECURITY LEVEL: VULNERABLE";
+            } else if (strength <= 60) {
+                labelText = "SECURITY LEVEL: MODERATE";
+            } else if (strength <= 80) {
+                labelText = "SECURITY LEVEL: SECURE";
+            } else {
+                labelText = "SECURITY LEVEL: FORTIFIED";
+            }
+
+            securityLabel.innerText = labelText;
+        }
+
+        // Copy to Clipboard
+        function copyPassword() {
+            const text = passwordOutput.innerText;
+            if (text === 'Generate') return;
+
+            navigator.clipboard.writeText(text).then(() => {
+                showToast("COPIED TO CLIPBOARD");
+            });
+        }
+
+        // Toast Notification
+        function showToast(msg) {
+            toast.innerText = msg;
+            toast.classList.add('visible');
+            setTimeout(() => {
+                toast.classList.remove('visible');
+            }, 2000);
+        }
+
+        // Initial Generation on Load
+        window.onload = () => {
+            generatePassword();
+        };
+
+    </script>
+</body>
+</html>
