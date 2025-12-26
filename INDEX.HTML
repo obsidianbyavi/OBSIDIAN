@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>OBSIDIAN | Digital Sovereignty</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        /* --- 1. CORE VARIABLES & RESET --- */
+        :root {
+            --bg-color: #000000;
+            --surface-color: #0a0a0a;
+            --border-color: #1a1a1a;
+            --text-main: #ffffff;
+            --text-muted: #666666;
+            --font-display: 'Helvetica Neue', 'Arial', sans-serif;
+            --font-mono: 'Courier New', Courier, monospace;
+            --ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            outline: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        @media (hover: hover) and (pointer: fine) {
+            * { cursor: none; }
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: var(--font-display);
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.04'/%3E%3C/svg%3E");
+        }
+
+        body.modal-open { overflow: hidden; }
+        a { text-decoration: none; color: inherit; }
+        ul { list-style: none; }
+
+        /* --- 2. CUSTOM CURSOR --- */
+        .cursor-dot, .cursor-outline {
+            position: fixed; top: 0; left: 0;
+            transform: translate(-50%, -50%);
+            border-radius: 50%; z-index: 9999; pointer-events: none;
+            display: none;
+        }
+        
+        @media (hover: hover) and (pointer: fine) {
+            .cursor-dot, .cursor-outline { display: block; }
+            .cursor-dot { width: 5px; height: 5px; background-color: white; }
+            .cursor-outline {
+                width: 30px; height: 30px; border: 1px solid rgba(255, 255, 255, 0.5);
+                transition: width 0.2s, height 0.2s, background-color 0.2s;
+            }
+            body.hovering .cursor-outline {
+                width: 50px; height: 50px;
+                background-color: rgba(255, 255, 255, 0.1); border-color: transparent;
+            }
+        }
+
+        /* --- 3. NAVIGATION --- */
+        nav {
+            position: fixed; top: 0; width: 100%; padding: 2rem 3rem;
+            display: flex; justify-content: space-between; align-items: center;
+            z-index: 100;
+            background: linear-gradient(to bottom, #000000 0%, rgba(0,0,0,0) 100%);
+            transition: all 0.3s ease;
+        }
+        .logo { font-weight: 800; letter-spacing: -0.05em; font-size: 1.5rem; z-index: 101; }
+        .nav-links { display: flex; gap: 2rem; }
+        .nav-btn {
+            font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em;
+            color: var(--text-muted); transition: color 0.3s ease;
+            background: transparent; border: none; padding: 0.5rem;
+            cursor: pointer;
+        }
+        .nav-btn:hover, .nav-btn.active { color: var(--text-main); }
+
+        /* --- 4. SECTIONS LAYOUT --- */
+        main { position: relative; width: 100%; min-height: 100vh; padding-top: 100px; }
+        
+        .section {
+            position: absolute; top: 0; left: 0; width: 100%; 
+            padding: 8rem 10% 2rem 10%;
+            opacity: 0; visibility: hidden; transform: translateY(20px);
+            transition: opacity 0.6s var(--ease-out-expo), transform 0.6s var(--ease-out-expo), visibility 0.6s;
+            display: none;
+        }
+        .section.active { opacity: 1; visibility: visible; transform: translateY(0); display: block; }
+        
+        .section-header {
+            font-size: 0.8rem; letter-spacing: 0.4em; text-transform: uppercase;
+            color: var(--text-muted); margin-bottom: 3rem; padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        /* --- 5. SECTION: HOME --- */
+        #home { 
+            height: 100vh;
+            display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
+        }
+        .hero-title { font-size: clamp(3rem, 8vw, 8rem); line-height: 0.9; font-weight: 800; letter-spacing: -0.04em; margin-bottom: 2rem; }
+        .hero-subtitle { font-family: var(--font-mono); color: var(--text-muted); font-size: 0.9rem; max-width: 400px; line-height: 1.6; }
+
+        /* --- 6. SECTION: BLOG --- */
+        .grid-layout { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 2rem; margin-top: 2rem; }
+        .card {
+            border: 1px solid var(--border-color); padding: 2rem;
+            transition: border-color 0.3s ease, transform 0.3s ease;
+            background: rgba(10, 10, 10, 0.5); cursor: pointer;
+        }
+        .card:hover { border-color: #333; transform: translateY(-5px); }
+        .card-date { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); margin-bottom: 1rem; display: block; }
+        .card-title { font-size: 1.2rem; margin-bottom: 1rem; font-weight: 700; }
+        .card-desc { font-size: 0.9rem; color: var(--text-muted); line-height: 1.5; }
+
+        /* Blog Modal */
+        .blog-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.95); z-index: 200;
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.4s ease; backdrop-filter: blur(10px);
+        }
+        .blog-modal.open { opacity: 1; pointer-events: auto; }
+        .modal-content {
+            width: 90%; max-width: 800px; height: 80vh;
+            background: var(--surface-color); border: 1px solid var(--border-color);
+            padding: 4rem; overflow-y: auto; transform: translateY(50px);
+            transition: transform 0.5s var(--ease-out-expo); position: relative;
+        }
+        .blog-modal.open .modal-content { transform: translateY(0); }
+        .close-modal {
+            position: absolute; top: 2rem; right: 2rem; font-family: var(--font-mono);
+            font-size: 0.8rem; background: transparent; border: 1px solid var(--border-color);
+            color: var(--text-muted); padding: 0.5rem 1rem; cursor: pointer; transition: all 0.2s;
+        }
+        .close-modal:hover { color: var(--text-main); border-color: var(--text-main); }
+        .modal-body { line-height: 1.8; color: #ccc; margin-top: 2rem; font-family: var(--font-display); }
+
+        /* --- 7. SECTION: DOWNLOADS --- */
+        .download-list { display: flex; flex-direction: column; gap: 1px; background: var(--border-color); border: 1px solid var(--border-color); }
+        .download-item { background: var(--bg-color); padding: 1.5rem 2rem; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s ease; }
+        .download-item:hover { background: var(--surface-color); }
+        .dl-info h3 { font-size: 1rem; margin-bottom: 0.25rem; }
+        .dl-info span { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); }
+        .dl-btn {
+            border: 1px solid var(--text-muted); color: var(--text-main); background: transparent;
+            padding: 0.5rem 1.5rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em;
+            transition: all 0.2s ease; cursor: pointer;
+        }
+        .dl-btn:hover { background: var(--text-main); color: var(--bg-color); border-color: var(--text-main); }
+
+        /* --- 8. SECTION: TOOLS --- */
+        .tool-banner {
+            display: flex; justify-content: space-between; align-items: center;
+            width: 100%; padding: 3rem 2rem;
+            border: 1px solid var(--border-color);
+            background: linear-gradient(90deg, var(--surface-color) 0%, var(--bg-color) 100%);
+            text-decoration: none; color: var(--text-main);
+            transition: all 0.4s var(--ease-out-expo);
+            position: relative; overflow: hidden; cursor: pointer;
+        }
+        .tool-banner:hover { border-color: #444; transform: translateY(-2px); background: linear-gradient(90deg, #151515 0%, #050505 100%); }
+        .banner-content h2 { font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; letter-spacing: -0.02em; }
+        .banner-content p { color: var(--text-muted); font-family: var(--font-mono); font-size: 0.9rem; }
+        .banner-arrow { font-size: 2rem; opacity: 0.5; transition: transform 0.4s ease, opacity 0.4s ease; }
+        .tool-banner:hover .banner-arrow { transform: translateX(10px); opacity: 1; color: #fff; }
+
+        /* --- 9. SECTION: SUPPORT (Client-Side Private) --- */
+        .support-container {
+            max-width: 400px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .upi-input-group {
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        .upi-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 0;
+            font-size: 1.5rem;
+            color: var(--text-main);
+            font-family: var(--font-mono);
+            text-align: center;
+            border-radius: 0;
+        }
+        
+        .upi-input:focus { border-color: var(--text-main); }
+
+        .upi-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-top: 0.5rem;
+            display: block;
+        }
+
+        .generate-qr-btn {
+            width: 100%;
+            background: var(--text-main);
+            color: var(--bg-color);
+            border: none;
+            padding: 1rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            cursor: pointer;
+            margin-bottom: 2rem;
+            transition: transform 0.2s;
+        }
+        
+        .generate-qr-btn:hover { transform: scale(1.02); }
+
+        .qr-display {
+            background: #fff;
+            padding: 1rem;
+            width: 240px;
+            height: 240px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            visibility: hidden;
+            border-radius: 4px;
+        }
+        
+        .qr-display.visible { opacity: 1; visibility: visible; }
+        
+        /* Fix for QRCode.js canvas scaling */
+        .qr-display canvas, .qr-display img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        .upi-id-display {
+            margin-top: 1.5rem;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            opacity: 0;
+            transition: opacity 0.5s ease 0.2s;
+        }
+        
+        .qr-display.visible ~ .upi-id-display { opacity: 1; }
+
+        /* --- 10. TOAST --- */
+        .toast {
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(20px);
+            background: var(--surface-color); border: 1px solid var(--border-color);
+            padding: 1rem 2rem; font-size: 0.8rem; letter-spacing: 0.1em;
+            opacity: 0; pointer-events: none; transition: all 0.4s var(--ease-out-expo); z-index: 300; white-space: nowrap;
+        }
+        .toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        /* --- MOBILE QUERIES --- */
+        @media (max-width: 768px) {
+            nav {
+                flex-direction: column; padding: 1.5rem;
+                background: rgba(0,0,0,0.95); backdrop-filter: blur(10px);
+            }
+            .nav-links { margin-top: 1rem; width: 100%; justify-content: space-between; gap: 0; }
+            .nav-btn { padding: 0.8rem; font-size: 0.7rem; }
+            .section { padding: 140px 1.5rem 2rem 1.5rem; }
+            #home { align-items: center; text-align: center; padding-left: 1.5rem; padding-right: 1.5rem; }
+            .hero-title { font-size: 3rem; margin-bottom: 1.5rem; }
+            .hero-subtitle { width: 100%; font-size: 0.85rem; }
+            .grid-layout { grid-template-columns: 1fr; }
+            .download-item { padding: 1.5rem 1rem; }
+            .tool-banner { flex-direction: column; text-align: center; gap: 1rem; }
+            .banner-arrow { transform: rotate(90deg); margin-top: 1rem; }
+            .modal-content { width: 100%; height: 100%; padding: 2rem; border: none; }
+            .close-modal { top: 1rem; right: 1rem; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="cursor-dot" data-cursor-dot></div>
+    <div class="cursor-outline" data-cursor-outline></div>
+
+    <nav>
+        <div class="logo">OBSIDIAN X AVISHKAR KUBAL</div>
+        <div class="nav-links">
+            <button class="nav-btn active" onclick="switchTab('home')">Home</button>
+            <button class="nav-btn" onclick="switchTab('blog')">Blog</button>
+            <button class="nav-btn" onclick="switchTab('downloads')">Downloads</button>
+            <button class="nav-btn" onclick="switchTab('tools')">Tools</button>
+            <button class="nav-btn" onclick="switchTab('support')">Support</button>
+        </div>
+    </nav>
+
+    <main>
+
+        <section id="home" class="section active">
+            <div class="hero-subtitle">SYSTEM STATUS: ONLINE</div>
+            <div class="hero-title">OBSIDIAN</div>
+            <div class="hero-subtitle">
+                Take back control. Minimalist tools for the modern privacy advocate. 
+                Encrypted, open-source, and designed for silence.
+            </div>
+        </section>
+
+        <section id="blog" class="section">
+            <div class="section-header">LATEST TRANSMISSIONS</div>
+            <div class="grid-layout">
+                <article class="card hover-trigger" onclick="openBlog(0)">
+                    <span class="card-date">DEC 24, 2024</span>
+                    <h2 class="card-title">The Death of Metadata</h2>
+                    <p class="card-desc">Why hiding the content is no longer enough. We explore the future of header encryption.</p>
+                </article>
+                <article class="card hover-trigger" onclick="openBlog(1)">
+                    <span class="card-date">NOV 10, 2024</span>
+                    <h2 class="card-title">Minimalist OpsSec</h2>
+                    <p class="card-desc">Reducing your digital footprint by simplifying your toolchain.</p>
+                </article>
+                <article class="card hover-trigger" onclick="openBlog(2)">
+                    <span class="card-date">OCT 02, 2024</span>
+                    <h2 class="card-title">Zero Trust Architecture</h2>
+                    <p class="card-desc">Implementing strict identity verification for every person and device.</p>
+                </article>
+            </div>
+        </section>
+
+        <section id="downloads" class="section">
+            <div class="section-header">AVAILABLE BINARIES</div>
+            <div class="download-list">
+                <div class="download-item hover-trigger">
+                    <div class="dl-info">
+                        <h3>Obsidian Core v2.4</h3>
+                        <span>macOS (Silicon) / 45MB</span>
+                    </div>
+                    <button class="dl-btn" onclick="triggerDownload('obsidian_mac_v2.4.dmg')">Download</button>
+                </div>
+                <div class="download-item hover-trigger">
+                    <div class="dl-info">
+                        <h3>Obsidian Core v2.4</h3>
+                        <span>Windows 11 / 52MB</span>
+                    </div>
+                    <button class="dl-btn" onclick="triggerDownload('obsidian_win_v2.4.exe')">Download</button>
+                </div>
+                <div class="download-item hover-trigger">
+                    <div class="dl-info">
+                        <h3>Vault CLI Tool</h3>
+                        <span>Linux (Debian) / 12MB</span>
+                    </div>
+                    <button class="dl-btn" onclick="triggerDownload('vault_cli_linux.tar.gz')">Download</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="tools" class="section">
+            <div class="section-header">AVAILABLE UTILITIES</div>
+            <a href="https://google.com" target="_blank" class="tool-banner hover-trigger">
+                <div class="banner-content">
+                    <h2>SECURE HASH GENERATOR</h2>
+                    <p>LAUNCH EXTERNAL APPLICATION</p>
+                </div>
+                <div class="banner-arrow">→</div>
+            </a>
+        </section>
+
+        <section id="support" class="section">
+            <div class="section-header">SUPPORT THE MISSION</div>
+            <div class="support-container">
+                <div class="upi-input-group">
+                    <input type="number" id="upiAmount" class="upi-input hover-trigger" placeholder="500" min="1">
+                    <span class="upi-label">ENTER AMOUNT (INR)</span>
+                </div>
+                <button class="generate-qr-btn hover-trigger" onclick="generateUPI()">GENERATE QR CODE</button>
+                
+                <div class="qr-display" id="qrContainer"></div>
+                
+                <div class="upi-id-display">
+                    SCAN WITH ANY UPI APP
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <div class="blog-modal" id="blogModal">
+        <div class="modal-content">
+            <button class="close-modal hover-trigger" onclick="closeBlog()">CLOSE TERMINAL</button>
+            <div id="modalTextContent"></div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast">ACTION COMPLETE</div>
+
+    <script>
+        /* --- CONFIG --- */
+        // !!! REPLACE WITH YOUR UPI ID !!!
+        const UPI_ID = 'your-upi-id@okaxis'; 
+        const PAYEE_NAME = 'ObsidianSupport';
+
+        /* --- DATA --- */
+        const blogPosts = [
+            {
+                title: "The Death of Metadata",
+                date: "DEC 24, 2024",
+                body: `<p>In the age of surveillance capitalism, encrypting your messages is table stakes. But what about the metadata? Who you talk to, when, and for how long often reveals more than the message itself.</p>
+                       <p>Traditional end-to-end encryption (E2EE) leaves headers exposed. Our latest research dives into "Sealed Sender" technologies.</p>`
+            },
+            {
+                title: "Minimalist OpsSec",
+                date: "NOV 10, 2024",
+                body: `<p>Complexity is the enemy of security. Every additional tool, plugin, or dependency you add to your workflow increases your attack surface.</p>
+                       <p>1. Audit your stack. If you haven't used an app in 30 days, delete it.<br>2. Use raw text over rich media where possible.</p>`
+            },
+            {
+                title: "Zero Trust Architecture",
+                date: "OCT 02, 2024",
+                body: `<p>"Trust, but verify" is dead. The new paradigm is "Never trust, always verify." Zero Trust assumes that the network is already compromised.</p>`
+            }
+        ];
+
+        /* --- 1. CURSOR LOGIC --- */
+        const cursorDot = document.querySelector('[data-cursor-dot]');
+        const cursorOutline = document.querySelector('[data-cursor-outline]');
+        
+        if (window.matchMedia("(hover: hover)").matches) {
+            window.addEventListener('mousemove', (e) => {
+                const posX = e.clientX;
+                const posY = e.clientY;
+                cursorDot.style.left = `${posX}px`;
+                cursorDot.style.top = `${posY}px`;
+                cursorOutline.animate({ left: `${posX}px`, top: `${posY}px` }, { duration: 500, fill: "forwards" });
+            });
+            document.querySelectorAll('.hover-trigger').forEach(trigger => {
+                trigger.addEventListener('mouseenter', () => document.body.classList.add('hovering'));
+                trigger.addEventListener('mouseleave', () => document.body.classList.remove('hovering'));
+            });
+        }
+
+        /* --- 2. TAB SWITCHING --- */
+        function switchTab(tabId) {
+            document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            
+            const btns = document.querySelectorAll('.nav-btn');
+            const map = {'home':0, 'blog':1, 'downloads':2, 'tools':3, 'support':4};
+            
+            if(btns[map[tabId]]) {
+                btns[map[tabId]].classList.add('active');
+            }
+            window.scrollTo(0,0);
+        }
+
+        /* --- 3. BLOG MODAL --- */
+        const modal = document.getElementById('blogModal');
+        const modalContent = document.getElementById('modalTextContent');
+
+        function openBlog(index) {
+            const post = blogPosts[index];
+            modalContent.innerHTML = `
+                <div style="margin-bottom: 2rem; border-bottom: 1px solid #333; padding-bottom: 1rem;">
+                    <span style="font-family: var(--font-mono); color: #666; font-size: 0.8rem;">${post.date}</span>
+                    <h1 style="font-size: 1.5rem; margin-top: 0.5rem; line-height: 1.2;">${post.title}</h1>
+                </div>
+                <div class="modal-body">${post.body}</div>
+            `;
+            modal.classList.add('open');
+            document.body.classList.add('modal-open');
+        }
+
+        function closeBlog() {
+            modal.classList.remove('open');
+            document.body.classList.remove('modal-open');
+        }
+
+        modal.addEventListener('click', (e) => {
+            if(e.target === modal) closeBlog();
+        });
+
+        /* --- 4. UPI QR GENERATOR (CLIENT SIDE) --- */
+        function generateUPI() {
+            const amountInput = document.getElementById('upiAmount');
+            const amount = amountInput.value;
+            const qrContainer = document.getElementById('qrContainer');
+
+            if (!amount || amount <= 0) {
+                showToast("ENTER VALID AMOUNT");
+                return;
+            }
+
+            // Clear previous QR
+            qrContainer.innerHTML = '';
+            qrContainer.classList.remove('visible');
+
+            // Construct UPI String
+            const upiString = `upi://pay?pa=obsidianbyavi@upi&pn=OBSIDIAN&am=${amount}&cu=INR`;
+            
+            // Generate locally using qrcode.js
+            setTimeout(() => {
+                new QRCode(qrContainer, {
+                    text: upiString,
+                    width: 200,
+                    height: 200,
+                    colorDark : "#000000",
+                    colorLight : "#ffffff",
+                    correctLevel : QRCode.CorrectLevel.H
+                });
+                
+                qrContainer.classList.add('visible');
+                showToast("QR CODE GENERATED");
+            }, 100);
+        }
+
+        /* --- 5. DOWNLOAD & TOAST --- */
+        function triggerDownload(filename) {
+            const dummyContent = `OBSIDIAN SECURE PACKAGE\nFile: ${filename}\nTimestamp: ${new Date().toISOString()}\n[BINARY DATA]...`;
+            const blob = new Blob([dummyContent], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = filename + ".txt"; 
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            showToast("DOWNLOADING...");
+        }
+
+        const toast = document.getElementById('toast');
+        function showToast(msg) {
+            toast.innerText = msg;
+            toast.classList.add('visible');
+            setTimeout(() => toast.classList.remove('visible'), 2000);
+        }
+
+    </script>
+</body>
+</html>
